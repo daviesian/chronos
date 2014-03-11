@@ -1,0 +1,14 @@
+[
+	{"title": "Reign of King Harold",
+	 "guid": "ce88a250-a922-11e3-a5e2-0800200c9a66",
+	 "start": {"instant": {"year": 1066, "month": 1, "day": 6}},
+	 "end": {"relativeTo": "ce88a251-a922-11e3-a5e2-0800200c9a66"}
+	},
+
+	{"title": "Battle of Hastings",
+	 "guid": "ce88a251-a922-11e3-a5e2-0800200c9a66",
+	 "date": {"instant": {"year": 1066, "month": 10, "day": 14}}
+	}
+
+
+]
