@@ -1,7 +1,7 @@
 define(function(require) {
 
 	 function $N(value, ifnull) {
-	    return value == null ? ifnull : value;
+	    return value == null ? ifnull : value;	
 	 }
 
 	function secondsBetweenYears(yearA, yearB) {
@@ -26,7 +26,7 @@ define(function(require) {
 			inst.month = (inst.month-1) % 12 + 1;
 		} else if (inst.month < 1) {
 			inst.year += Math.floor((inst.month-1) / 12);
-			inst.month = ((inst.month-1) % 12 + 12) + 1;
+			inst.month = (((inst.month-1) % 12 + 12) % 12) + 1;
 		}
 
 	}
@@ -57,7 +57,7 @@ define(function(require) {
 				inst.second %= 60;
 			} else if (inst.second < 0) {
 				inst.minute += Math.floor(inst.second / 60);
-				inst.second = inst.second % 60 + 60;
+				inst.second = (inst.second % 60 + 60) % 60;
 			}
 		}
 		
@@ -67,9 +67,10 @@ define(function(require) {
 				inst.minute %= 60;
 			} else if (inst.minute < 0) {
 				inst.hour += Math.floor(inst.minute / 60);
-				inst.minute = inst.minute % 60 + 60;
+				inst.minute = (inst.minute % 60 + 60) % 60;
 			}
 		}
+		var orig2 = $.extend({}, inst);
 		
 		if (inst.hour != null && inst.hour != undefined) {
 			if (inst.hour > 23) {
@@ -77,7 +78,7 @@ define(function(require) {
 				inst.hour %= 24;
 			} else if (inst.hour < 0) {
 				inst.day += Math.floor(inst.hour / 24);
-				inst.hour = inst.hour % 24 + 24;
+				inst.hour = (inst.hour % 24 + 24) % 24;
 			}
 		}
 		if (inst.hour > 23)
@@ -98,7 +99,7 @@ define(function(require) {
 	
 		var ys = secondsBetweenYears(instA.year, instB.year);
 		
-		var subyears = secondsintoYear(instA) - secondsIntoYear(instB);
+		var subyears = secondsIntoYear(instA) - secondsIntoYear(instB);
 		
 		return ys + subyears; 
 
@@ -120,6 +121,21 @@ define(function(require) {
 		
 		return result;
 	};
+
+	Cal.addTimespans = function(ts1, ts2) {
+		var result = {};
+		for (var unit in ts1) { result[unit] = ts1[unit]; }
+		for (var unit in ts2) {
+			result[unit] = $N(result[unit], 0) + ts2[unit];
+		}
+		return result;
+	}
+
+	Cal.negateTimespan = function(ts) {
+		var result = {};
+		for (var unit in ts) { result[unit] = -ts[unit]; }
+		return result;
+	}
 	
 	Cal.subtractTimespan = function(inst, timespan) {
 		var result = {

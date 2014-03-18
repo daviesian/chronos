@@ -1,31 +1,126 @@
 define(function(require) {
 	$ = require("jquery");
 
+	//dateObjects = require("dateobjects");
+
 	function Renderer(calendar, events) {
 		this.calendar = calendar;
 		this.events = events;
 	}
 
+
+
 	Renderer.prototype.render = function(canvas) {
+		var originInst = {"year": 1066};
+
+		 var calendarRangeToTs = function(calRange) {
+
+			var r = {};
+
+			if (calRange.min)
+				r.minT = this.calendar.subtract(calRange.min, originInst);
+			if (calRange.max)
+				r.maxT = this.calendar.subtract(calRange.max, originInst);
+			if (calRange.when)
+				r.t = this.calendar.subtract(calRange.when, originInst);
+
+			return r;
+		}.bind(this);
+
+		var revents = [];
+
+		for (var i in this.events) {
+			var event = this.events[i];
+
+			revents[i] = {event: event};
+			var revent = revents[i];
+
+			if (event.isPointEvent()) {
+
+				var eventDate = event.getStart();
+
+				var calRange = eventDate.getCalendarRange(this.events);
+
+				revent.ts = { when: calendarRangeToTs(calRange, originInst) };
+
+			} else {
+
+				var eventStart = event.getStart();
+				var eventEnd = event.getEnd();
+
+				var startRange = eventStart.getCalendarRange(this.events);
+				var endRange = eventEnd.getCalendarRange(this.events);
+
+				revent.ts = {
+					start: calendarRangeToTs(startRange, originInst),
+					end: calendarRangeToTs(endRange, originInst)
+				};
+			}
+		}
+
+		// And now...we render!
 		var ctx = canvas.getContext("2d");
 
 		var width = $(canvas).width(), height = $(canvas).height();
 
-		var originInst = {"year": 1066};
+		// First, draw a timeline
 
-		for (var id in this.events) {
-			var event = this.events[i];
+		var pixelsPerT = 300/3.1e7; // 1000 pixels per year
 
-			if (event.date) { // Point event
-				event.t = this.calendar.subtract(event.date, originInst);
+		var originpx = 300;
+
+		var timelinepy = 200;
+
+		ctx.beginPath();
+		ctx.moveTo(0, timelinepy);
+		ctx.lineTo(width, timelinepy);
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.moveTo(originpx, timelinepy - 10);
+		ctx.lineTo(originpx, timelinepy + 10);
+		ctx.stroke();
+
+		var nextLane = 0;
+
+		function tToX(t) { return originpx + t*pixelsPerT; }
+		for (var i in revents) {
+			var revent = revents[i];
+
+			var y = timelinepy + 20 + 20 * nextLane;
+
+			if (revent.ts.when) {
+				// point event
+				ctx.beginPath();
+				var x = tToX(revent.ts.when.t);
+				ctx.arc(x, y, 10, 0, 360);
+				ctx.fill();
+
+				ctx.textBaseline = "middle";
+				ctx.textAlign = "left";
+				ctx.fillText(revent.event.json.title, x + 15, y);
+
+				//console.log("Point event", x, y, revent.event.json.title, revent);
 			} else {
-				// Must have at least two of {start, end, duration}; we need both start and end T
+				// Line event
+				var fromx = tToX((revent.ts.start.t == null) ? revent.ts.start.minT : revent.ts.start.t);
+				var tox = tToX((revent.ts.end.t == null) ? revent.ts.end.minT : revent.ts.end.t);
 
-				var start = event.start;
+				ctx.beginPath();
+				ctx.lineWidth = 4;
+				ctx.moveTo(fromx, y);
+				ctx.lineTo(tox, y);
+				ctx.stroke();
 
-				event.startT = 
+				ctx.textBaseline = "bottom";
+				ctx.textAlign = "center";
+				ctx.fillText(revent.event.json.title, (fromx+tox)/2, y-5);
+				//console.log("Line event", fromx, tox, y, revent.event.json.title, revent);
 			}
+
+			nextLane++;
 		}
+
 	};
 
 	return Renderer;

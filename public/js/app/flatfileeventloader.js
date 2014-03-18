@@ -5,6 +5,9 @@ define(function(require) {
 	$ = require("jquery");
 	require("RSVP");
 
+	var dateObjects = require("app/dateobjects");
+	var GregorianCalendar = require("./calendars/gregorian");
+
 	function Loader(url) {
 		var l = $.getJSON(url);
 
@@ -15,7 +18,7 @@ define(function(require) {
 		l.done(function(d) {
 			var e = {};
 			for(var i in d) {
-				e[d[i].guid] = d[i];
+				e[d[i].guid] = new dateObjects.Event(d[i], GregorianCalendar);
 			}
 			self.eventLoad.resolve(e);
 		}).fail(function(e) {
