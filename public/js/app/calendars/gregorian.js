@@ -157,7 +157,13 @@ define(function(require) {
 	};
 	
 	Cal.getTicks = function(focusInst, startT, endT, minTGap) {
-		
+		var year = 365*24*3600, month = 30*24*3600;
+
+		return {levels: ["year", "month"],
+				ticks: {year: [-year, 0, year, 2*year],
+						month: [0, month, month*2, month*3]},
+				labels: {year: [1065, 1066, 1067, 1068],
+						 month: ["Jan", "Feb", "Mar", "Apr"]}};
 	};
 	
 	return Cal;

@@ -81,9 +81,39 @@ define(function(require) {
 		ctx.lineTo(originpx, timelinepy + 10);
 		ctx.stroke();
 
+		function tToX(t) { return originpx + t*pixelsPerT; }
+
+		var ticks = this.calendar.getTicks(originInst, -originpx/pixelsPerT, (width-originpx)/pixelsPerT, 40/pixelsPerT);
+
+		var maxTickHeight = 30;
+
+		for (var li in ticks.levels) {
+			var level = ticks.levels[li];
+
+			var tickHeight = maxTickHeight * (ticks.levels.length - li)/ticks.levels.length;
+			var textHeight = maxTickHeight + (ticks.levels.length - li) * 10;
+			
+			var tickTs = ticks.ticks[level];
+			var labels = ticks.labels[level];
+
+			for (var ti in tickTs) {
+				var t = tickTs[ti];
+				var l = labels[ti];
+
+				ctx.beginPath();
+				ctx.moveTo(tToX(t), timelinepy);
+				ctx.lineTo(tToX(t), timelinepy - tickHeight);
+				ctx.stroke();
+
+				ctx.textBaseline = "bottom";
+				ctx.textAlign = "center";
+				ctx.fillText(l, tToX(t), timelinepy - textHeight);
+			}
+		}
+
+
 		var nextLane = 0;
 
-		function tToX(t) { return originpx + t*pixelsPerT; }
 		for (var i in revents) {
 			var revent = revents[i];
 
