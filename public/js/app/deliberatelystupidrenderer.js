@@ -8,9 +8,7 @@ define(function(require) {
 		this.events = events;
 	}
 
-
-
-	Renderer.prototype.render = function(canvas) {
+	Renderer.prototype.render = function(canvas, pixelsPerT, originpx) {
 		var originInst = {"year": 1066};
 
 		 var calendarRangeToTs = function(calRange) {
@@ -63,13 +61,15 @@ define(function(require) {
 
 		var width = $(canvas).width(), height = $(canvas).height();
 
+		ctx.clearRect(0,0, width, height);
+
 		// First, draw a timeline
 
-		var pixelsPerT = 300/3.1e7; // 1000 pixels per year
 
-		var originpx = 300;
 
 		var timelinepy = 200;
+
+		ctx.lineWidth = 1;
 
 		ctx.beginPath();
 		ctx.moveTo(0, timelinepy);
@@ -83,7 +83,7 @@ define(function(require) {
 
 		function tToX(t) { return Math.round(originpx + t*pixelsPerT) + 0.5; }
 
-		var ticks = this.calendar.getTicks(originInst, -originpx/pixelsPerT, (width-originpx)/pixelsPerT, 20/pixelsPerT);
+		var ticks = this.calendar.getTicks(originInst, -originpx/pixelsPerT, (width-originpx)/pixelsPerT, 40/pixelsPerT, 10/pixelsPerT);
 
 		var maxTickHeight = 30;
 
@@ -100,9 +100,11 @@ define(function(require) {
 				var t = tickTs[ti];
 				var l = labels[ti];
 
+				var myTickHeight = (l == "") ? (tickHeight - 0.5*maxTickHeight/ticks.levels.length) : tickHeight;
+
 				ctx.beginPath();
 				ctx.moveTo(tToX(t), timelinepy);
-				ctx.lineTo(tToX(t), timelinepy - tickHeight);
+				ctx.lineTo(tToX(t), timelinepy - myTickHeight);
 				ctx.stroke();
 
 				ctx.textBaseline = "bottom";

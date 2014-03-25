@@ -37,6 +37,15 @@ define(function(require) {
 		if (inst.day == null)
 			return;
 		
+		// Right now, we don't do leap years, so we can do this the simple way
+		if (inst.day > 365) {
+			inst.year += Math.floor((inst.day-1)/365);
+			inst.day = (inst.day-1) % 365 + 1;
+		} else if (inst.day < -365) {
+			inst.year += Math.ceil((inst.day-1)/365);
+			inst.day = (inst.day - 1) % 365 + 1;
+		}
+
 		while (inst.day > monthLengths[inst.month]) {
 			inst.day -= monthLengths[inst.month];
 			inst.month++;
@@ -51,7 +60,6 @@ define(function(require) {
 	}
 	
 	function normaliseTimeOfDay(inst) {
-		var orig = $.extend({}, inst);
 		if (inst.second != null) {
 			if (inst.second > 59) {
 				inst.minute += Math.floor(inst.second / 60);
@@ -71,7 +79,6 @@ define(function(require) {
 				inst.minute = (inst.minute % 60 + 60) % 60;
 			}
 		}
-		var orig2 = $.extend({}, inst);
 		
 		if (inst.hour != null && inst.hour != undefined) {
 			if (inst.hour > 23) {
@@ -82,8 +89,6 @@ define(function(require) {
 				inst.hour = (inst.hour % 24 + 24) % 24;
 			}
 		}
-		if (inst.hour > 23)
-			debugger;
 		normaliseDays(inst);
 	}
 	
@@ -176,44 +181,146 @@ define(function(require) {
 		return false;
 	}
 	
-	Cal.getTicks = function(focusInst, startT, endT, minTGap) {
+	Cal.getTicks = function(focusInst, startT, endT, majorTGap, minorTGap) {
 		var startInst = Cal.addT(focusInst, startT);
 		var endInst = Cal.addT(focusInst, endT);
+
+		console.log("Ticking from ", startInst, "to", endInst);
+
+		minorTGap = minorTGap || majorTGap;
 
 		// Go through from top level to bottom level, generating all ticks
 
 		var r = {levels: [], ticks: {}, labels: {}};
 
-		// Year ticks
-		if (startInst.year != endInst.year && minTGap < 365*24*3600) {
-			r.levels.push("year");
+		function forInterval(roundedStart, level, incr, labelFn) {
 			var ticks = [];
 			var labels = [];
-			r.ticks.year = ticks;
-			r.labels.year = labels;
+			r.ticks[level] = ticks;
+			r.labels[level] = labels;
 
-			for (var y = startInst.year; y <= endInst.year; y++) {
-				ticks.push(Cal.subtract({year: y}, focusInst));
-				labels.push(y);
+			var inst = roundedStart;
+			//var incr = {};
+			//incr[level] = 1;
+
+			if (labelFn == "") { labelFn = function() { return ""; } }
+
+			do {
+				var lab = (labelFn ? labelFn(inst) : inst[level]);
+				if (lab != null) {
+					ticks.push(Cal.subtract(inst, focusInst));
+					labels.push(lab);
+				}
+				inst = Cal.addTimespan(inst, incr);
+			} while(!Cal.isAfter(inst, endInst));
+		}
+
+		var roundedInst = {year: startInst.year}
+
+		// Year ticks
+		if (startInst.year != endInst.year) {
+
+			// What's the closest order of magnitude here?
+			function getInterval(tgap) {
+				var yeargap = tgap / (365*24*3600);
+
+				if (yeargap < 1) { return 1; }
+
+				var logyeargap = Math.log(yeargap)/Math.LN10;
+				var orderOfMagnitude = Math.floor(logyeargap);
+
+				// So, our tick interval will be (2|5|10) * 10^orderOfMagnitude
+
+				// Calculate 10^orderOfMagnitude as an integer (because Math.pow() is subject to floating-point weirdness)
+				var base = 1;
+				for (var i=0; i<orderOfMagnitude; i++) {
+					base *= 10;
+				}
+
+				if (yeargap < 2*base) { return 2*base; }
+				if (yeargap < 5*base) { return 5*base; }
+				return 10*base;
 			}
+
+			var majorInterval = getInterval(majorTGap);
+			var minorInterval = getInterval(minorTGap);
+
+			r.levels.push("year");
+
+			// roundedInst needs to round to the nearest minorInterval
+			roundedInst.year -= roundedInst.year % minorInterval;
+			if (roundedInst.year > startInst.year) { roundedInst.year -= minorInterval; }
+
+			forInterval(roundedInst, "year", {years: minorInterval}, function(inst) { return (inst.year % majorInterval == 0) ? inst.year : ""; });
 		}
 
 		// Month ticks
-		if ((r.ticks.year || startInst.month != endInst.month) && minTGap < 30*24*3600) {
+		if ((r.ticks.year || startInst.month != endInst.month) && minorTGap < 30*24*3600) {
 			r.levels.push("month");
-			r.ticks.month = [];
-			r.labels.month = [];
-
-			var inst = {year: startInst.year, month: $N(startInst.month, 1)};
-			var incr = {months: 1};
-			do {
-				r.ticks.month.push(Cal.subtract(inst, focusInst));
-				r.labels.month.push(monthAbbrevs[inst.month]);
-				inst = Cal.addTimespan(inst, incr);
-			} while (!Cal.isAfter(inst, endInst));
+			roundedInst.month = $N(startInst.month, 1);
+			forInterval(roundedInst, "month", {months: 1}, (majorTGap < 30*24*3600) ? function(inst) { return monthAbbrevs[inst.month]; } : "");
 		}
 
-		console.log(r);
+		// Days
+		if ((r.ticks.month || startInst.day != endInst.day) && minorTGap < 24*3600) {
+			r.levels.push("day");
+			roundedInst.day = $N(startInst.day, 1);
+			forInterval(roundedInst, "day", {days: 1}, (majorTGap < 24*3600) ? null : "");
+		}
+
+		// Hours
+
+		function renderTime(inst) {
+			var mins = inst.minute || 0;
+			if (mins < 10) { mins = "0"+mins; }
+			return (inst.hour || 0) + ":" + mins;
+		}
+
+		function mkGetInterval(possibleIntervals, scaleFactor) {
+			function getInterval(tgap) {
+				var intervals = possibleIntervals;
+				for (var i in intervals) {
+					if (tgap < intervals[i]*scaleFactor) { return intervals[i]; }
+				}
+				return null;
+			}
+			return getInterval;
+		}
+
+		if ((r.ticks.day || startInst.hour != endInst.hour || startInst.minute != endInst.minute) && minorTGap < 3600) {
+			r.levels.push("timeofday");
+			roundedInst.hour = $N(startInst.hour, 0);
+
+			var getInterval = mkGetInterval([1, 5, 15, 60], 60);
+
+			var minorInterval = getInterval(minorTGap);
+			var majorInterval = getInterval(majorTGap);
+
+			if (minorInterval == 1) { roundedInst.minute = $N(startInst.minute, 0); } // otherwise count from the hour
+
+			forInterval(roundedInst, "timeofday", {minutes: minorInterval},
+				majorInterval ? function(inst) { return (inst.minute % majorInterval == 0) ? renderTime(inst) : ""; } : "");
+		}
+
+		if ((r.ticks.minute || startInst.second != endInst.second) && minorTGap < 15) {
+			r.levels.push("second");
+			
+			console.log(roundedInst);
+
+			var getInterval = mkGetInterval([1, 5, 15], 1);
+			var minorInterval = getInterval(minorTGap);
+			var majorInterval = getInterval(majorTGap);
+
+			if (minorInterval == 1) { roundedInst.second = Math.floor($N(startInst.second, 0)); } // otherwise count from the minute
+
+			console.log("major =", majorInterval, "; minor =", minorInterval);
+
+			forInterval(roundedInst, "second", {seconds: minorInterval}, function(inst) {
+				return (inst.second == 0) ? null :
+						(!majorInterval || (inst.second % majorInterval != 0)) ? "" :
+						(":" + (inst.second < 10 ? "0" : "") + inst.second);
+			});
+		}
 
 		return r;
 	};
