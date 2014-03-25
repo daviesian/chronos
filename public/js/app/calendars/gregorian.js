@@ -8,9 +8,10 @@ define(function(require) {
 		return (yearA - yearB) * 365 * 24 * 3600;
 	}
 	
+	var monthAbbrevs = [undefined, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 	var monthLengths = [undefined, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 	var cumulativeMonthLengths = [0, 0, 31, 59,90,120,151,181,212,243,273,304,334];
-	
+
 	function secondsIntoYear(inst) {
 		
 		return cumulativeMonthLengths[(inst.month || 1)] * 24 * 3600 + ((inst.day || 1)-1) * 24 * 3600 + (inst.hour || 0) * 3600 + (inst.minute || 0) * 60 + (inst.second || 0);
@@ -155,15 +156,66 @@ define(function(require) {
 	Cal.addT = function(inst, t) {
 		 return Cal.addTimespan(inst, {seconds: t});
 	};
+
+	Cal.isAfter = function(instA, instB) {
+		// instA and instB must be normalised
+		// (but that's OK, because we never let un-normalised dates out of this code)
+
+		var keys = ["year", "month", "day", "hour", "minute", "second"];
+
+		for (var i in keys) {
+			var k = keys[i];
+			var a = instA[k], b = instB[k];
+			if (a == null) { return false; }
+			if (b == null) { return true; }
+
+			if (a > b) { return true; }
+			if (a < b) { return false; }
+		}
+
+		return false;
+	}
 	
 	Cal.getTicks = function(focusInst, startT, endT, minTGap) {
-		var year = 365*24*3600, month = 30*24*3600;
+		var startInst = Cal.addT(focusInst, startT);
+		var endInst = Cal.addT(focusInst, endT);
 
-		return {levels: ["year", "month"],
-				ticks: {year: [-year, 0, year, 2*year],
-						month: [0, month, month*2, month*3]},
-				labels: {year: [1065, 1066, 1067, 1068],
-						 month: ["Jan", "Feb", "Mar", "Apr"]}};
+		// Go through from top level to bottom level, generating all ticks
+
+		var r = {levels: [], ticks: {}, labels: {}};
+
+		// Year ticks
+		if (startInst.year != endInst.year && minTGap < 365*24*3600) {
+			r.levels.push("year");
+			var ticks = [];
+			var labels = [];
+			r.ticks.year = ticks;
+			r.labels.year = labels;
+
+			for (var y = startInst.year; y <= endInst.year; y++) {
+				ticks.push(Cal.subtract({year: y}, focusInst));
+				labels.push(y);
+			}
+		}
+
+		// Month ticks
+		if ((r.ticks.year || startInst.month != endInst.month) && minTGap < 30*24*3600) {
+			r.levels.push("month");
+			r.ticks.month = [];
+			r.labels.month = [];
+
+			var inst = {year: startInst.year, month: $N(startInst.month, 1)};
+			var incr = {months: 1};
+			do {
+				r.ticks.month.push(Cal.subtract(inst, focusInst));
+				r.labels.month.push(monthAbbrevs[inst.month]);
+				inst = Cal.addTimespan(inst, incr);
+			} while (!Cal.isAfter(inst, endInst));
+		}
+
+		console.log(r);
+
+		return r;
 	};
 	
 	return Cal;

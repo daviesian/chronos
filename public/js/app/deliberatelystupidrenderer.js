@@ -77,13 +77,13 @@ define(function(require) {
 		ctx.stroke();
 
 		ctx.beginPath();
-		ctx.moveTo(originpx, timelinepy - 10);
-		ctx.lineTo(originpx, timelinepy + 10);
+		ctx.moveTo(originpx + 0.5, timelinepy - 10);
+		ctx.lineTo(originpx + 0.5, timelinepy + 10);
 		ctx.stroke();
 
-		function tToX(t) { return originpx + t*pixelsPerT; }
+		function tToX(t) { return Math.round(originpx + t*pixelsPerT) + 0.5; }
 
-		var ticks = this.calendar.getTicks(originInst, -originpx/pixelsPerT, (width-originpx)/pixelsPerT, 40/pixelsPerT);
+		var ticks = this.calendar.getTicks(originInst, -originpx/pixelsPerT, (width-originpx)/pixelsPerT, 20/pixelsPerT);
 
 		var maxTickHeight = 30;
 

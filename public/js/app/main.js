@@ -11,13 +11,13 @@ define(function(require) {
 	});
 
 
-	Loader = require("app/flatfileeventloader");
-	GregorianCalendar = require("./calendars/gregorian");
+	Loader = require("app/FlatFileEventLoader");
+	GregorianCalendar = require("./calendars/Gregorian");
 
 	new Loader("json/events.json").getEvents().then(function(es) {
 		events = es
 
-		DeliberatelyStupidRenderer = require("app/deliberatelystupidrenderer");
+		DeliberatelyStupidRenderer = require("app/DeliberatelyStupidRenderer");
 
 		r = new DeliberatelyStupidRenderer(GregorianCalendar, events);
 
